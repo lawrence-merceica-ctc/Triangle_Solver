@@ -1,263 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Triangle Solver</title>
-<style>
-  body {
-    margin: 0;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-    background: #000;
-    color: #ddd;
-  }
-  h1 { margin: 0 0 10px 0; }
-  .panel {
-    background: #111;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-  }
-  .row {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-  }
-  .controls { width: 260px; }
-  label { display: block; margin: 6px 0 2px; }
-  input, select {
-    width: 100%;
-    padding: 6px;
-    background: #222;
-    border: 1px solid #444;
-    color: #eee;
-    border-radius: 4px;
-  }
-  #triCanvas {
-    width: 100%;
-    max-width: 1000px;
-    aspect-ratio: 1 / 1;
-    background: #000;
-    border: 1px solid #333;
-    border-radius: 8px;
-    display: block;
-    margin: auto;
-  }
-</style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Triangle Solver</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #ddd;
+        }
+        h1 { margin: 0 0 10px 0; }
+        .panel {
+            background: #111;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .controls { width: 260px; }
+        label { display: block; margin: 6px 0 2px; }
+        input, select {
+            width: 100%;
+            padding: 6px;
+            background: #222;
+            border: 1px solid #444;
+            color: #eee;
+            border-radius: 4px;
+        }
+        #triCanvas {
+            width: 100%;
+            max-width: 1000px;
+            aspect-ratio: 1 / 1;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 8px;
+            display: block;
+            margin: auto;
+        }
+    </style>
 </head>
 <body>
 <h1>Triangle Solver</h1>
 <div class="panel">
-  <div class="row">
-    <div class="controls">
-      <label>Side a (BC)</label>
-      <input id="a" type="number" value="3" />
+    <div class="row">
+        <div class="controls">
+            <label>Side a</label>
+            <input id="a" type="number" value="3" />
 
-      <label>Side b (AC - bottom)</label>
-      <input id="b" type="number" value="4" />
+            <label>Side b (bottom)</label>
+            <input id="b" type="number" value="4" />
 
-      <label>Known Angle</label>
-      <select id="knownAngle">
-        <option value="A">A</option>
-        <option value="B">B</option>
-        <option value="C" selected>C</option>
-      </select>
+            <label>Known Angle</label>
+            <select id="knownAngle">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C" selected>C</option>
+            </select>
 
-      <label>Angle Value (degrees)</label>
-      <input id="angleVal" type="number" value="" />
+            <label>Angle Value (degrees)</label>
+            <input id="angleVal" type="number" value="" />
+        </div>
+
+        <div style="flex: 1; min-width: 300px; display: flex; align-items: stretch;">
+            <canvas id="triCanvas"></canvas>
+        </div>
     </div>
-
-    <div style="flex: 1; min-width: 300px; display: flex; align-items: stretch;">
-      <canvas id="triCanvas"></canvas>
-    </div>
-  </div>
 </div>
 
 <div class="panel" id="results"></div>
 
 <script>
-function toRad(d) { return d * Math.PI / 180; }
-function toDeg(r) { return r * 180 / Math.PI; }
+    function toRad(d) { return d * Math.PI / 180; }
+    function toDeg(r) { return r * 180 / Math.PI; }
 
-// Triangle solver
-function computeTriangle(a, b, known, ang) {
-  if (!(a > 0 && b > 0 && ang > 0 && ang < 180)) return null;
+    // Core triangle solver: given a, b, and one angle (A/B/C) in degrees
+    function computeTriangle(a, b, known, ang) {
+        if (!(a > 0 && b > 0 && ang > 0 && ang < 180)) return null;
 
-  let A, B, C, c;
+        let A, B, C, c;
 
-  if (known === 'C') {
-    C = ang;
-    c = Math.sqrt(a*a + b*b - 2*a*b*Math.cos(toRad(C)));
-    const sA = (a * Math.sin(toRad(C))) / c;
-    if (sA < -1 || sA > 1) return null;
-    A = toDeg(Math.asin(sA));
-    B = 180 - A - C;
-  }
+        if (known === 'C') {
+            C = ang;
+            c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
+            if (c <= 0) return null;
+            const sA = (a * Math.sin(toRad(C))) / c;
+            if (sA < -1 || sA > 1) return null;
+            A = toDeg(Math.asin(sA));
+            B = 180 - A - C;
+        } else if (known === 'A') {
+            A = ang;
+            const sB = (b * Math.sin(toRad(A))) / a;
+            if (sB < -1 || sB > 1) return null;
+            B = toDeg(Math.asin(sB));
+            C = 180 - A - B;
+            c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
+        } else if (known === 'B') {
+            B = ang;
+            const sA = (a * Math.sin(toRad(B))) / b;
+            if (sA < -1 || sA > 1) return null;
+            A = toDeg(Math.asin(sA));
+            C = 180 - A - B;
+            c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
+        } else {
+            return null;
+        }
 
-  else if (known === 'A') {
-    A = ang;
-    const sC = (b * Math.sin(toRad(A))) / a;
-    if (sC < -1 || sC > 1) return null;
-    C = toDeg(Math.asin(sC));
-    B = 180 - A - C;
-    c = Math.sqrt(a*a + b*b - 2*a*b*Math.cos(toRad(C)));
-  }
+        if (!(A > 0 && B > 0 && C > 0)) return null;
+        return { A, B, C, a, b, c };
+    }
 
-  else if (known === 'B') {
-    B = ang;
-    const sA = (a * Math.sin(toRad(B))) / b;
-    if (sA < -1 || sA > 1) return null;
-    A = toDeg(Math.asin(sA));
-    C = 180 - A - B;
-    c = Math.sqrt(a*a + b*b - 2*a*b*Math.cos(toRad(C)));
-  }
+    // ORIENTATION:
+    // b is the bottom side (AC)
+    // A bottom-left, C bottom-right, B at the top
+    function drawTriangle(a, b, c, A, B, Cang) {
+        const canvas = document.getElementById('triCanvas');
+        const ctx = canvas.getContext('2d');
 
-  return { A, B, C, a, b, c };
-}
+        const parentW = Math.min(canvas.parentElement.offsetWidth || 600, 1000);
+        canvas.width = parentW;
+        canvas.height = parentW;
 
-function drawTriangle(a, b, c, A, B, Cang) {
-  const canvas = document.getElementById('triCanvas');
-  const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const parentW = Math.min(canvas.parentElement.offsetWidth || 600, 1000);
-  canvas.width = parentW;
-  canvas.height = parentW;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const margin = canvas.width * 0.12;
+        const maxSide = Math.max(a, b, c);
+        let scale = (canvas.width - 2 * margin) / maxSide;
+        scale = scale * 0.9;
+        
+        // A = bottom-left
+        const Ax = margin;
+        const Ay = canvas.height - margin;
 
-  //
-  // --- 1. Build triangle in pure, unscaled geometry ---
-  //
-  // A is bottom-left at (0, 0)
-  let Ax = 0;
-  let Ay = 0;
+        // C = bottom-right, base AC = b
+        const Cx = Ax + b * scale;
+        const Cy = Ay;
 
-  // C is bottom-right at (b, 0)
-  let Cx = b;
-  let Cy = 0;
+        // B = top; AB has length c and makes angle A with base AC
+        const cosA = Math.cos(toRad(A));
+        const sinA = Math.sin(toRad(A));
+        const Bx = Ax + c * scale * cosA;
+        const By = Ay - c * scale * sinA;
 
-  // B computed from angle A and side c
-  const cosA = Math.cos(toRad(A));
-  const sinA = Math.sin(toRad(A));
+        // Draw triangle
+        ctx.lineWidth = Math.max(canvas.width * 0.006, 2);
+        ctx.strokeStyle = '#ddd';
+        ctx.beginPath();
+        ctx.moveTo(Ax, Ay);
+        ctx.lineTo(Cx, Cy);
+        ctx.lineTo(Bx, By);
+        ctx.closePath();
+        ctx.stroke();
 
-  let Bx = c * cosA;
-  let By = -c * sinA;   // negative = upward
+        // Labels
+        ctx.fillStyle = '#fff';
+        ctx.font = `${canvas.width * 0.03}px Arial`;
 
-  //
-  // --- 2. Find bounding box of triangle ---
-  //
-  const minX = Math.min(Ax, Bx, Cx);
-  const maxX = Math.max(Ax, Bx, Cx);
-  const minY = Math.min(Ay, By, Cy);
-  const maxY = Math.max(Ay, By, Cy);
+        // Side labels
+        ctx.fillText(`b=${b.toFixed(2)}`, (Ax + Cx) / 2 - 20, Ay + 25);           // base AC
+        ctx.fillText(`a=${a.toFixed(2)}`, (Bx + Cx) / 2 + 10, (By + Cy) / 2);     // BC
+        ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) / 2 - 40, (Ay + By) / 2);     // AB
 
-  const triW = maxX - minX;
-  const triH = maxY - minY;
+        // Angle labels
+        ctx.fillText(`A=${A.toFixed(1)}°`, Ax - 40, Ay + 30);                     // bottom-left
+        ctx.fillText(`C=${Cang.toFixed(1)}°`, Cx + 10, Cy + 30);                  // bottom-right
+        ctx.fillText(`B=${B.toFixed(1)}°`, Bx - 20, By - 10);                     // top
+    }
 
-  //
-  // --- 3. Compute scale to fit bounding box inside canvas ---
-  //
-  const margin = canvas.width * 0.12;
-  const usableW = canvas.width - 2 * margin;
-  const usableH = canvas.height - 2 * margin;
+    function solve() {
+        const a = parseFloat(document.getElementById('a').value);
+        const b = parseFloat(document.getElementById('b').value);
+        const known = document.getElementById('knownAngle').value;
+        const ang = parseFloat(document.getElementById('angleVal').value);
 
-  let scale = Math.min(usableW / triW, usableH / triH);
+        const t = computeTriangle(a, b, known, ang);
+        const panel = document.getElementById('results');
+        const canvas = document.getElementById('triCanvas');
+        const ctx = canvas.getContext('2d');
 
-  // shrink slightly so labels never touch edges
-  scale *= 0.9;
+        if (!t) {
+            panel.innerHTML = '<h2>Results</h2><p>Invalid triangle.</p>';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
 
-  //
-  // --- 4. Apply scaling ---
-  //
-  Ax *= scale;  Ay *= scale;
-  Bx *= scale;  By *= scale;
-  Cx *= scale;  Cy *= scale;
+        const { A, B, C, c } = t;
 
-  //
-  // --- 5. Recompute bounding box after scaling ---
-  //
-  const minXs = Math.min(Ax, Bx, Cx);
-  const maxXs = Math.max(Ax, Bx, Cx);
-  const minYs = Math.min(Ay, By, Cy);
-  const maxYs = Math.max(Ay, By, Cy);
+        // Build equation text showing how it was calculated
+        let eqHtml = '<h3>Calculation</h3>';
+        if (known === 'C') {
+            const cosC = Math.cos(toRad(ang));
+            const c2 = a*a + b*b - 2*a*b*cosC;
+            eqHtml += `
+      <p>Given a = ${a}, b = ${b}, C = ${ang}°</p>
+      <p><strong>Law of Cosines:</strong></p>
+      <p>c² = a² + b² − 2ab·cos(C)</p>
+      <p>c² = ${a}² + ${b}² − 2·${a}·${b}·cos(${ang}°) = ${c2.toFixed(3)}</p>
+      <p>c = √(c²) ≈ ${c.toFixed(3)}</p>
+      <p><strong>Law of Sines:</strong></p>
+      <p>sin(A) = (a·sin(C)) / c</p>
+      <p>A ≈ ${A.toFixed(2)}°, B = 180° − A − C ≈ ${B.toFixed(2)}°</p>
+    `;
+        } else if (known === 'A') {
+            const sB = (b * Math.sin(toRad(ang))) / a;
+            const c2 = a*a + b*b - 2*a*b*Math.cos(toRad(C));
+            eqHtml += `
+      <p>Given a = ${a}, b = ${b}, A = ${ang}°</p>
+      <p><strong>Law of Sines:</strong></p>
+      <p>sin(B) = (b·sin(A)) / a</p>
+      <p>sin(B) = (${b}·sin(${ang}°)) / ${a}</p>
+      <p>B ≈ ${B.toFixed(2)}°, C = 180° − A − B ≈ ${C.toFixed(2)}°</p>
+      <p><strong>Law of Cosines:</strong></p>
+      <p>c² = a² + b² − 2ab·cos(C)</p>
+      <p>c² = ${a}² + ${b}² − 2·${a}·${b}·cos(${C.toFixed(2)}°) ≈ ${c2.toFixed(3)}</p>
+      <p>c = √(c²) ≈ ${c.toFixed(3)}</p>
+    `;
+        } else if (known === 'B') {
+            const sA = (a * Math.sin(toRad(ang))) / b;
+            const c2 = a*a + b*b - 2*a*b*Math.cos(toRad(C));
+            eqHtml += `
+      <p>Given a = ${a}, b = ${b}, B = ${ang}°</p>
+      <p><strong>Law of Sines:</strong></p>
+      <p>sin(A) = (a·sin(B)) / b</p>
+      <p>sin(A) = (${a}·sin(${ang}°)) / ${b}</p>
+      <p>A ≈ ${A.toFixed(2)}°, C = 180° − A − B ≈ ${C.toFixed(2)}°</p>
+      <p><strong>Law of Cosines:</strong></p>
+      <p>c² = a² + b² − 2ab·cos(C)</p>
+      <p>c² = ${a}² + ${b}² − 2·${a}·${b}·cos(${C.toFixed(2)}°) ≈ ${c2.toFixed(3)}</p>
+      <p>c = √(c²) ≈ ${c.toFixed(3)}</p>
+    `;
+        }
 
-  const scaledW = maxXs - minXs;
-  const scaledH = maxYs - minYs;
+        panel.innerHTML = `<h2>Results</h2>
+    <p>A = ${A.toFixed(2)}°</p>
+    <p>B = ${B.toFixed(2)}°</p>
+    <p>C = ${C.toFixed(2)}°</p>
+    <p>a = ${a}</p>
+    <p>b = ${b}</p>
+    <p>c = ${c.toFixed(3)}</p>
+    ${eqHtml}
+  `;
 
-  //
-  // --- 6. Compute offsets to center the triangle ---
-  //
-  const offsetX = (canvas.width - scaledW) / 2 - minXs;
-  const offsetY = (canvas.height - scaledH) / 2 - minYs;
+        drawTriangle(a, b, c, A, B, C);
+    }
 
-  Ax += offsetX; Ay += offsetY;
-  Bx += offsetX; By += offsetY;
-  Cx += offsetX; Cy += offsetY;
+    // Input updates
+    ['a', 'b', 'angleVal'].forEach(id => {
+        document.getElementById(id).addEventListener('input', solve);
+    });
+    document.getElementById('knownAngle').addEventListener('change', solve);
 
-  //
-  // --- 7. Draw the triangle ---
-  //
-  ctx.lineWidth = Math.max(canvas.width * 0.006, 2);
-  ctx.strokeStyle = "#fff";
-
-  ctx.beginPath();
-  ctx.moveTo(Ax, Ay);
-  ctx.lineTo(Cx, Cy);
-  ctx.lineTo(Bx, By);
-  ctx.closePath();
-  ctx.stroke();
-
-  //
-  // --- 8. Draw labels ---
-  //
-  ctx.fillStyle = "#fff";
-  ctx.font = `${canvas.width * 0.03}px Arial`;
-
-  // Sides
-  ctx.fillText(`b=${b.toFixed(2)}`, (Ax + Cx) * 0.5 - 20, (Ay + Cy) * 0.5 + 25);
-  ctx.fillText(`a=${a.toFixed(2)}`, (Bx + Cx) * 0.5 + 10, (By + Cy) * 0.5);
-  ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) * 0.5 - 40, (Ay + By) * 0.5);
-
-  // Angles
-  ctx.fillText(`A=${A.toFixed(1)}°`, Ax - 40, Ay + 30);
-  ctx.fillText(`C=${Cang.toFixed(1)}°`, Cx + 10, Cy + 30);
-  ctx.fillText(`B=${B.toFixed(1)}°`, Bx - 20, By - 10);
-}
-
-function solve() {
-  const a = parseFloat(document.getElementById('a').value);
-  const b = parseFloat(document.getElementById('b').value);
-  const known = document.getElementById('knownAngle').value;
-  const ang = parseFloat(document.getElementById('angleVal').value);
-
-  const t = computeTriangle(a, b, known, ang);
-  const panel = document.getElementById('results');
-  const canvas = document.getElementById('triCanvas');
-
-  if (!t) {
-    panel.innerHTML = '<h2>Results</h2><p>Invalid triangle.</p>';
-    return;
-  }
-
-  const { A, B, C, c } = t;
-
-  panel.innerHTML = `<h2>Results</h2>
-    <p>A=${A.toFixed(2)}°</p>
-    <p>B=${B.toFixed(2)}°</p>
-    <p>C=${C.toFixed(2)}°</p>
-    <p>a=${a}</p>
-    <p>b=${b}</p>
-    <p>c=${c.toFixed(3)}</p>`;
-
-  drawTriangle(a, b, c, A, B, C);
-}
-
-['a','b','angleVal'].forEach(id => {
-  document.getElementById(id).addEventListener('input', solve);
-});
-document.getElementById('knownAngle').addEventListener('change', solve);
-
-window.addEventListener('load', () => requestAnimationFrame(solve));
+    window.addEventListener('load', () => {
+        requestAnimationFrame(() => {
+            solve();
+        });
+    });
 </script>
 </body>
 </html>
