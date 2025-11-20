@@ -51,10 +51,10 @@
 <div class="panel">
   <div class="row">
     <div class="controls">
-      <label>Side a</label>
+      <label>Side a (BC)</label>
       <input id="a" type="number" value="3" />
 
-      <label>Side b</label>
+      <label>Side b (AC - bottom)</label>
       <input id="b" type="number" value="4" />
 
       <label>Known Angle</label>
@@ -80,7 +80,7 @@
 function toRad(d) { return d * Math.PI / 180; }
 function toDeg(r) { return r * 180 / Math.PI; }
 
-// Core triangle solver: given a, b, and one angle (A/B/C) in degrees
+// Triangle solver
 function computeTriangle(a, b, known, ang) {
   if (!(a > 0 && b > 0 && ang > 0 && ang < 180)) return null;
 
@@ -88,86 +88,95 @@ function computeTriangle(a, b, known, ang) {
 
   if (known === 'C') {
     C = ang;
-    c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
-    if (c <= 0) return null;
+    c = Math.sqrt(a*a + b*b - 2*a*b*Math.cos(toRad(C)));
     const sA = (a * Math.sin(toRad(C))) / c;
     if (sA < -1 || sA > 1) return null;
     A = toDeg(Math.asin(sA));
     B = 180 - A - C;
-  } else if (known === 'A') {
+  }
+
+  else if (known === 'A') {
     A = ang;
-    const sB = (b * Math.sin(toRad(A))) / a;
-    if (sB < -1 || sB > 1) return null;
-    B = toDeg(Math.asin(sB));
-    C = 180 - A - B;
-    c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
-  } else if (known === 'B') {
+    const sC = (b * Math.sin(toRad(A))) / a;
+    if (sC < -1 || sC > 1) return null;
+    C = toDeg(Math.asin(sC));
+    B = 180 - A - C;
+    c = Math.sqrt(a*a + b*b - 2*a*b*Math.cos(toRad(C)));
+  }
+
+  else if (known === 'B') {
     B = ang;
     const sA = (a * Math.sin(toRad(B))) / b;
     if (sA < -1 || sA > 1) return null;
     A = toDeg(Math.asin(sA));
     C = 180 - A - B;
-    c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
-  } else {
-    return null;
+    c = Math.sqrt(a*a + b*b - 2*a*b*Math.cos(toRad(C)));
   }
 
-  if (!(A > 0 && B > 0 && C > 0)) return null;
   return { A, B, C, a, b, c };
 }
 
-// FIXED ORIENTATION:
-// b is always the bottom side
-// a is always the right side
-function drawTriangle(a, b, c, A, B, C) {
+// Correct layout: A bottom-left, C bottom-right, B top
+function drawTriangle(a, b, c, A, B, Cang) {
   const canvas = document.getElementById('triCanvas');
   const ctx = canvas.getContext('2d');
 
-  const parentW = Math.min(canvas.parentElement.offsetWidth || 600, 1000);
-  canvas.width = parentW;
-  canvas.height = parentW;
+  const W = Math.min(canvas.parentElement.offsetWidth || 600, 1000);
+  canvas.width = W;
+  canvas.height = W;
+  ctx.clearRect(0, 0, W, W);
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const margin = W * 0.1;
 
-  const margin = canvas.width * 0.12;
-  const maxSide = Math.max(a, b, c);
-  const scale = (canvas.width - 2 * margin) / maxSide;
+  // Base is AC = side b (bottom)
+  const Ax = margin;
+  const Ay = W - margin;
 
-  // Bottom-left (angle B)
-  const Bx = margin;
-  const By = canvas.height - margin;
+  const Cx = Ax + b * ((W - 2 * margin) / Math.max(a, b, c));
+  const Cy = Ay;
 
-  // Bottom-right (angle C)
-  const Cx = Bx + b * scale;
-  const Cy = By;
+  // Height (from law of cosines height formula)
+  const height = Math.sqrt(Math.max(0, a*a - ((b*b + a*a - c*c)/(2*b))**2));
 
-  // Top point (angle A)
-  const Ax = Cx - a * scale * Math.cos((180 - C) * Math.PI / 180);
-  const Ay = Cy - a * scale * Math.sin((180 - C) * Math.PI / 180);
+  const scale = (W - 2*margin) / Math.max(b, height);
 
-  // Draw triangle
-  ctx.lineWidth = Math.max(canvas.width * 0.006, 2);
-  ctx.strokeStyle = '#ddd';
+  const Cscaled = Ax + b * scale;
+  const heightScaled = height * scale;
+
+  // Updated coordinates
+  const Axs = Ax;
+  const Ays = Ay;
+
+  const Cxs = Ax + b * scale;
+  const Cys = Ay;
+
+  // B is above somewhere depending on angles
+  const Bxs = Axs + ( (b*b + c*c - a*a) / (2*b) ) * scale;
+  const Bys = Ays - heightScaled;
+
+  // Draw
   ctx.beginPath();
-  ctx.moveTo(Bx, By);
-  ctx.lineTo(Cx, Cy);
-  ctx.lineTo(Ax, Ay);
+  ctx.moveTo(Axs, Ays);
+  ctx.lineTo(Cxs, Cys);
+  ctx.lineTo(Bxs, Bys);
   ctx.closePath();
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#fff";
   ctx.stroke();
 
-  // Labels
-  ctx.fillStyle = '#fff';
-  ctx.font = `${canvas.width * 0.03}px Arial`;
+  ctx.fillStyle = "#fff";
+  ctx.font = `${W*0.03}px Arial`;
 
   // Side labels
-  ctx.fillText(`b=${b.toFixed(2)}`, (Bx + Cx) / 2 - 20, By + 25);
-  ctx.fillText(`a=${a.toFixed(2)}`, (Ax + Cx) / 2 + 10, (Ay + Cy) / 2);
-  ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) / 2 - 40, (Ay + By) / 2);
+  ctx.fillText(`b=${b.toFixed(2)}`, (Axs + Cxs)/2 - 20, Ays + 25);
+  ctx.fillText(`a=${a.toFixed(2)}`, (Bxs + Cxs)/2 + 5, (Bys + Cys)/2);
+  ctx.fillText(`c=${c.toFixed(2)}`, (Axs + Bxs)/2 - 40, (Ays + Bys)/2);
 
   // Angle labels
-  ctx.fillText(`B=${B.toFixed(1)}°`, Bx - 40, By + 30);
-  ctx.fillText(`C=${C.toFixed(1)}°`, Cx + 10, Cy + 30);
-  ctx.fillText(`A=${A.toFixed(1)}°`, Ax - 20, Ay - 10);
+  ctx.fillText(`A=${A.toFixed(1)}°`, Axs - 40, Ays + 30);
+  ctx.fillText(`C=${Cang.toFixed(1)}°`, Cxs + 10, Cys + 30);
+  ctx.fillText(`B=${B.toFixed(1)}°`, Bxs - 20, Bys - 10);
 }
 
 function solve() {
@@ -179,15 +188,14 @@ function solve() {
   const t = computeTriangle(a, b, known, ang);
   const panel = document.getElementById('results');
   const canvas = document.getElementById('triCanvas');
-  const ctx = canvas.getContext('2d');
 
   if (!t) {
     panel.innerHTML = '<h2>Results</h2><p>Invalid triangle.</p>';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     return;
   }
 
   const { A, B, C, c } = t;
+
   panel.innerHTML = `<h2>Results</h2>
     <p>A=${A.toFixed(2)}°</p>
     <p>B=${B.toFixed(2)}°</p>
@@ -199,17 +207,12 @@ function solve() {
   drawTriangle(a, b, c, A, B, C);
 }
 
-// Input updates
-['a', 'b', 'angleVal'].forEach(id => {
+['a','b','angleVal'].forEach(id => {
   document.getElementById(id).addEventListener('input', solve);
 });
 document.getElementById('knownAngle').addEventListener('change', solve);
 
-window.addEventListener('load', () => {
-  requestAnimationFrame(() => {
-    solve();
-  });
-});
+window.addEventListener('load', () => requestAnimationFrame(solve));
 </script>
 </body>
 </html>
