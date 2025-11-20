@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Triangle Solver</title>
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #000;
+    color: #ddd;
+  }
+  h1 { margin: 0 0 10px 0; }
+  .panel {
+    background: #111;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  .row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .controls { width: 260px; }
+  label { display: block; margin: 6px 0 2px; }
+  input, select {
+    width: 100%;
+    padding: 6px;
+    background: #222;
+    border: 1px solid #444;
+    color: #eee;
+    border-radius: 4px;
+  }
+  #triCanvas {
+    width: 100%;
+    max-width: 1000px;
+    aspect-ratio: 1 / 1;
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: block;
+    margin: auto;
+  }
+</style>
+</head>
+<body>
+<h1>Triangle Solver</h1>
+<div class="panel">
+  <div class="row">
+    <div class="controls">
+      <label>Side a</label>
+      <input id="a" type="number" value="3" />
+
+      <label>Side b</label>
+      <input id="b" type="number" value="4" />
+
+      <label>Known Angle</label>
+      <select id="knownAngle">
+        <option value="A">A</option>
+        <option value="B">B</option>
+        <option value="C" selected>C</option>
+      </select>
+
+      <label>Angle Value (degrees)</label>
+      <input id="angleVal" type="number" value="" />
+    </div>
+
+    <div style="flex: 1; min-width: 300px; display: flex; align-items: stretch;">
+      <canvas id="triCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="results"></div>
+
+<script>
+function toRad(d) { return d * Math.PI / 180; }
+function toDeg(r) { return r * 180 / Math.PI; }
+
+// Core triangle solver: given a, b, and one angle (A/B/C) in degrees
+// returns {A,B,C,a,b,c} or null if invalid.
+function computeTriangle(a, b, known, ang) {
+  if (!(a > 0 && b > 0 && ang > 0 && ang < 180)) return null;
+
+  let A, B, C, c;
+
+  if (known === 'C') {
+    C = ang;
+    c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
+    if (c <= 0) return null;
+    const sA = (a * Math.sin(toRad(C))) / c;
+    if (sA < -1 || sA > 1) return null;
+    A = toDeg(Math.asin(sA));
+    B = 180 - A - C;
+  } else if (known === 'A') {
+    A = ang;
+    const sB = (b * Math.sin(toRad(A))) / a;
+    if (sB < -1 || sB > 1) return null;
+    B = toDeg(Math.asin(sB));
+    C = 180 - A - B;
+    c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
+  } else if (known === 'B') {
+    B = ang;
+    const sA = (a * Math.sin(toRad(B))) / b;
+    if (sA < -1 || sA > 1) return null;
+    A = toDeg(Math.asin(sA));
+    C = 180 - A - B;
+    c = Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(toRad(C)));
+  } else {
+    return null;
+  }
+
+  if (!(A > 0 && B > 0 && C > 0)) return null;
+  return { A, B, C, a, b, c };
+}
+
+function drawTriangle(a, b, c, A, B, C) {
+  const canvas = document.getElementById('triCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const parentW = Math.min(canvas.parentElement.offsetWidth || 600, 1000);
+  canvas.width = parentW;
+  canvas.height = parentW;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const margin = canvas.width * 0.12;
+  const scale = (canvas.width - 2 * margin) / Math.max(a, b, c);
+
+  const Ax = margin;
+  const Ay = canvas.height - margin;
+  const Bx = Ax + c * scale;
+  const By = Ay;
+  const Cx = Ax + b * scale * Math.cos(toRad(A));
+  const Cy = Ay - b * scale * Math.sin(toRad(A));
+
+  ctx.lineWidth = Math.max(canvas.width * 0.006, 2);
+  ctx.strokeStyle = '#ddd';
+  ctx.beginPath();
+  ctx.moveTo(Ax, Ay);
+  ctx.lineTo(Bx, By);
+  ctx.lineTo(Cx, Cy);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = `${canvas.width * 0.03}px Arial`;
+
+  // Side labels
+  ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) / 2 - 30, Ay - 10);
+  ctx.fillText(`b=${b.toFixed(2)}`, (Ax + Cx) / 2 - 30, (Ay + Cy) / 2);
+  ctx.fillText(`a=${a.toFixed(2)}`, (Bx + Cx) / 2 + 10, (By + Cy) / 2);
+
+  // Angle labels
+  ctx.fillText(`A=${A.toFixed(1)}°`, Ax - 40, Ay + 30);
+  ctx.fillText(`B=${B.toFixed(1)}°`, Bx + 10, By + 30);
+  ctx.fillText(`C=${C.toFixed(1)}°`, Cx + 10, Cy + 10);
+}
+
+function solve() {
+  const a = parseFloat(document.getElementById('a').value);
+  const b = parseFloat(document.getElementById('b').value);
+  const known = document.getElementById('knownAngle').value;
+  const ang = parseFloat(document.getElementById('angleVal').value);
+
+  const t = computeTriangle(a, b, known, ang);
+  const panel = document.getElementById('results');
+  const canvas = document.getElementById('triCanvas');
+  const ctx = canvas.getContext('2d');
+
+  if (!t) {
+    panel.innerHTML = '<h2>Results</h2><p>Invalid triangle.</p>';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+
+  const { A, B, C, c } = t;
+  panel.innerHTML = `<h2>Results</h2>
+    <p>A=${A.toFixed(2)}°</p>
+    <p>B=${B.toFixed(2)}°</p>
+    <p>C=${C.toFixed(2)}°</p>
+    <p>a=${a}</p>
+    <p>b=${b}</p>
+    <p>c=${c.toFixed(3)}</p>`;
+
+  drawTriangle(a, b, c, A, B, C);
+}
+
+// Basic console tests for the math (3-4-5 right triangle variants + one isosceles)
+function runTests() {
+  const tC = computeTriangle(3, 4, 'C', 90);
+  if (!tC) console.error('Test C failed: no triangle');
+  else console.assert(Math.abs(tC.c - 5) < 1e-3, 'Test C: c should be 5');
+
+  const tA = computeTriangle(3, 4, 'A', tC ? tC.A : 36.869897);
+  if (!tA) console.error('Test A failed: no triangle');
+  else console.assert(Math.abs(tA.c - 5) < 1e-2, 'Test A: c should be ~5');
+
+  const tB = computeTriangle(3, 4, 'B', tC ? tC.B : 53.130102);
+  if (!tB) console.error('Test B failed: no triangle');
+  else console.assert(Math.abs(tB.c - 5) < 1e-2, 'Test B: c should be ~5');
+
+  // Additional test: isosceles case, a=b=5, C=60 -> all sides ≈5 (equilateral)
+  const tIso = computeTriangle(5, 5, 'C', 60);
+  if (!tIso) console.error('Test Iso failed: no triangle');
+  else console.assert(Math.abs(tIso.c - 5) < 1e-2, 'Test Iso: c should be ~5');
+}
+
+['a', 'b', 'angleVal'].forEach(id => {
+  document.getElementById(id).addEventListener('input', solve);
+});
+
+document.getElementById('knownAngle').addEventListener('change', solve);
+
+window.addEventListener('load', () => {
+  // Delay solve until layout is stable so parent width is non-zero
+  requestAnimationFrame(() => {
+    solve();
+    runTests();
+  });
+});
+</script>
+</body>
+</html>
