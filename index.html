@@ -125,34 +125,81 @@ function drawTriangle(a, b, c, A, B, Cang) {
   canvas.height = parentW;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const margin = canvas.width * 0.12;
+  //
+  // --- 1. Build triangle in pure, unscaled geometry ---
+  //
+  // A is bottom-left at (0, 0)
+  let Ax = 0;
+  let Ay = 0;
 
-  // scale based on max side – SAME as your original
-  let  scale = (canvas.width - 2 * margin) / Math.max(a, b, c);
+  // C is bottom-right at (b, 0)
+  let Cx = b;
+  let Cy = 0;
 
-  // Apply 10% shrink (prevents cut-off text)
-  scale *= 0.9;
-
-  // --- COORDINATES ---
-  // A = bottom-left
-  const Ax = margin;
-  const Ay = canvas.height - margin;
-
-  // C = bottom-right (base AC = b)
-  const Cx = Ax + b * scale;
-  const Cy = Ay;
-
-  // Compute B using Law of Cosines geometry
-  // d = horizontal projection from A of side c
+  // B computed from angle A and side c
   const cosA = Math.cos(toRad(A));
   const sinA = Math.sin(toRad(A));
 
-  const Bx = Ax + c * scale * cosA;
-  const By = Ay - c * scale * sinA;
+  let Bx = c * cosA;
+  let By = -c * sinA;   // negative = upward
 
-  // --- DRAW TRIANGLE ---
+  //
+  // --- 2. Find bounding box of triangle ---
+  //
+  const minX = Math.min(Ax, Bx, Cx);
+  const maxX = Math.max(Ax, Bx, Cx);
+  const minY = Math.min(Ay, By, Cy);
+  const maxY = Math.max(Ay, By, Cy);
+
+  const triW = maxX - minX;
+  const triH = maxY - minY;
+
+  //
+  // --- 3. Compute scale to fit bounding box inside canvas ---
+  //
+  const margin = canvas.width * 0.12;
+  const usableW = canvas.width - 2 * margin;
+  const usableH = canvas.height - 2 * margin;
+
+  let scale = Math.min(usableW / triW, usableH / triH);
+
+  // shrink slightly so labels never touch edges
+  scale *= 0.9;
+
+  //
+  // --- 4. Apply scaling ---
+  //
+  Ax *= scale;  Ay *= scale;
+  Bx *= scale;  By *= scale;
+  Cx *= scale;  Cy *= scale;
+
+  //
+  // --- 5. Recompute bounding box after scaling ---
+  //
+  const minXs = Math.min(Ax, Bx, Cx);
+  const maxXs = Math.max(Ax, Bx, Cx);
+  const minYs = Math.min(Ay, By, Cy);
+  const maxYs = Math.max(Ay, By, Cy);
+
+  const scaledW = maxXs - minXs;
+  const scaledH = maxYs - minYs;
+
+  //
+  // --- 6. Compute offsets to center the triangle ---
+  //
+  const offsetX = (canvas.width - scaledW) / 2 - minXs;
+  const offsetY = (canvas.height - scaledH) / 2 - minYs;
+
+  Ax += offsetX; Ay += offsetY;
+  Bx += offsetX; By += offsetY;
+  Cx += offsetX; Cy += offsetY;
+
+  //
+  // --- 7. Draw the triangle ---
+  //
   ctx.lineWidth = Math.max(canvas.width * 0.006, 2);
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = "#fff";
+
   ctx.beginPath();
   ctx.moveTo(Ax, Ay);
   ctx.lineTo(Cx, Cy);
@@ -160,21 +207,22 @@ function drawTriangle(a, b, c, A, B, Cang) {
   ctx.closePath();
   ctx.stroke();
 
-  // --- LABELS ---
-  ctx.fillStyle = '#fff';
+  //
+  // --- 8. Draw labels ---
+  //
+  ctx.fillStyle = "#fff";
   ctx.font = `${canvas.width * 0.03}px Arial`;
 
-  // Side labels
-  ctx.fillText(`b=${b.toFixed(2)}`, (Ax + Cx) / 2 - 20, Ay + 25);
-  ctx.fillText(`a=${a.toFixed(2)}`, (Bx + Cx) / 2 + 10, (By + Cy) / 2);
-  ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) / 2 - 40, (Ay + By) / 2);
+  // Sides
+  ctx.fillText(`b=${b.toFixed(2)}`, (Ax + Cx) * 0.5 - 20, (Ay + Cy) * 0.5 + 25);
+  ctx.fillText(`a=${a.toFixed(2)}`, (Bx + Cx) * 0.5 + 10, (By + Cy) * 0.5);
+  ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) * 0.5 - 40, (Ay + By) * 0.5);
 
-  // Angle labels (correct orientation)
+  // Angles
   ctx.fillText(`A=${A.toFixed(1)}°`, Ax - 40, Ay + 30);
   ctx.fillText(`C=${Cang.toFixed(1)}°`, Cx + 10, Cy + 30);
   ctx.fillText(`B=${B.toFixed(1)}°`, Bx - 20, By - 10);
 }
-
 
 function solve() {
   const a = parseFloat(document.getElementById('a').value);
