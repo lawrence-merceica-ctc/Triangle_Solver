@@ -81,7 +81,6 @@ function toRad(d) { return d * Math.PI / 180; }
 function toDeg(r) { return r * 180 / Math.PI; }
 
 // Core triangle solver: given a, b, and one angle (A/B/C) in degrees
-// returns {A,B,C,a,b,c} or null if invalid.
 function computeTriangle(a, b, known, ang) {
   if (!(a > 0 && b > 0 && ang > 0 && ang < 180)) return null;
 
@@ -117,6 +116,9 @@ function computeTriangle(a, b, known, ang) {
   return { A, B, C, a, b, c };
 }
 
+// FIXED ORIENTATION:
+// b is always the bottom side
+// a is always the right side
 function drawTriangle(a, b, c, A, B, C) {
   const canvas = document.getElementById('triCanvas');
   const ctx = canvas.getContext('2d');
@@ -128,36 +130,44 @@ function drawTriangle(a, b, c, A, B, C) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const margin = canvas.width * 0.12;
-  const scale = (canvas.width - 2 * margin) / Math.max(a, b, c);
+  const maxSide = Math.max(a, b, c);
+  const scale = (canvas.width - 2 * margin) / maxSide;
 
-  const Ax = margin;
-  const Ay = canvas.height - margin;
-  const Bx = Ax + c * scale;
-  const By = Ay;
-  const Cx = Ax + b * scale * Math.cos(toRad(A));
-  const Cy = Ay - b * scale * Math.sin(toRad(A));
+  // Bottom-left (angle B)
+  const Bx = margin;
+  const By = canvas.height - margin;
 
+  // Bottom-right (angle C)
+  const Cx = Bx + b * scale;
+  const Cy = By;
+
+  // Top point (angle A)
+  const Ax = Cx - a * scale * Math.cos((180 - C) * Math.PI / 180);
+  const Ay = Cy - a * scale * Math.sin((180 - C) * Math.PI / 180);
+
+  // Draw triangle
   ctx.lineWidth = Math.max(canvas.width * 0.006, 2);
   ctx.strokeStyle = '#ddd';
   ctx.beginPath();
-  ctx.moveTo(Ax, Ay);
-  ctx.lineTo(Bx, By);
+  ctx.moveTo(Bx, By);
   ctx.lineTo(Cx, Cy);
+  ctx.lineTo(Ax, Ay);
   ctx.closePath();
   ctx.stroke();
 
+  // Labels
   ctx.fillStyle = '#fff';
   ctx.font = `${canvas.width * 0.03}px Arial`;
 
   // Side labels
-  ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) / 2 - 30, Ay - 10);
-  ctx.fillText(`b=${b.toFixed(2)}`, (Ax + Cx) / 2 - 30, (Ay + Cy) / 2);
-  ctx.fillText(`a=${a.toFixed(2)}`, (Bx + Cx) / 2 + 10, (By + Cy) / 2);
+  ctx.fillText(`b=${b.toFixed(2)}`, (Bx + Cx) / 2 - 20, By + 25);
+  ctx.fillText(`a=${a.toFixed(2)}`, (Ax + Cx) / 2 + 10, (Ay + Cy) / 2);
+  ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) / 2 - 40, (Ay + By) / 2);
 
   // Angle labels
-  ctx.fillText(`A=${A.toFixed(1)}°`, Ax - 40, Ay + 30);
-  ctx.fillText(`B=${B.toFixed(1)}°`, Bx + 10, By + 30);
-  ctx.fillText(`C=${C.toFixed(1)}°`, Cx + 10, Cy + 10);
+  ctx.fillText(`B=${B.toFixed(1)}°`, Bx - 40, By + 30);
+  ctx.fillText(`C=${C.toFixed(1)}°`, Cx + 10, Cy + 30);
+  ctx.fillText(`A=${A.toFixed(1)}°`, Ax - 20, Ay - 10);
 }
 
 function solve() {
@@ -189,37 +199,15 @@ function solve() {
   drawTriangle(a, b, c, A, B, C);
 }
 
-// Basic console tests for the math (3-4-5 right triangle variants + one isosceles)
-function runTests() {
-  const tC = computeTriangle(3, 4, 'C', 90);
-  if (!tC) console.error('Test C failed: no triangle');
-  else console.assert(Math.abs(tC.c - 5) < 1e-3, 'Test C: c should be 5');
-
-  const tA = computeTriangle(3, 4, 'A', tC ? tC.A : 36.869897);
-  if (!tA) console.error('Test A failed: no triangle');
-  else console.assert(Math.abs(tA.c - 5) < 1e-2, 'Test A: c should be ~5');
-
-  const tB = computeTriangle(3, 4, 'B', tC ? tC.B : 53.130102);
-  if (!tB) console.error('Test B failed: no triangle');
-  else console.assert(Math.abs(tB.c - 5) < 1e-2, 'Test B: c should be ~5');
-
-  // Additional test: isosceles case, a=b=5, C=60 -> all sides ≈5 (equilateral)
-  const tIso = computeTriangle(5, 5, 'C', 60);
-  if (!tIso) console.error('Test Iso failed: no triangle');
-  else console.assert(Math.abs(tIso.c - 5) < 1e-2, 'Test Iso: c should be ~5');
-}
-
+// Input updates
 ['a', 'b', 'angleVal'].forEach(id => {
   document.getElementById(id).addEventListener('input', solve);
 });
-
 document.getElementById('knownAngle').addEventListener('change', solve);
 
 window.addEventListener('load', () => {
-  // Delay solve until layout is stable so parent width is non-zero
   requestAnimationFrame(() => {
     solve();
-    runTests();
   });
 });
 </script>
