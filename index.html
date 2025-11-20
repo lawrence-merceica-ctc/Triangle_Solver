@@ -116,68 +116,62 @@ function computeTriangle(a, b, known, ang) {
   return { A, B, C, a, b, c };
 }
 
-// Correct layout: A bottom-left, C bottom-right, B top
 function drawTriangle(a, b, c, A, B, Cang) {
   const canvas = document.getElementById('triCanvas');
   const ctx = canvas.getContext('2d');
 
-  const W = Math.min(canvas.parentElement.offsetWidth || 600, 1000);
-  canvas.width = W;
-  canvas.height = W;
-  ctx.clearRect(0, 0, W, W);
+  const parentW = Math.min(canvas.parentElement.offsetWidth || 600, 1000);
+  canvas.width = parentW;
+  canvas.height = parentW;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const margin = W * 0.1;
+  const margin = canvas.width * 0.12;
 
-  // Base is AC = side b (bottom)
+  // scale based on max side – SAME as your original
+  const scale = (canvas.width - 2 * margin) / Math.max(a, b, c);
+
+  // --- COORDINATES ---
+  // A = bottom-left
   const Ax = margin;
-  const Ay = W - margin;
+  const Ay = canvas.height - margin;
 
-  const Cx = Ax + b * ((W - 2 * margin) / Math.max(a, b, c));
+  // C = bottom-right (base AC = b)
+  const Cx = Ax + b * scale;
   const Cy = Ay;
 
-  // Height (from law of cosines height formula)
-  const height = Math.sqrt(Math.max(0, a*a - ((b*b + a*a - c*c)/(2*b))**2));
+  // Compute B using Law of Cosines geometry
+  // d = horizontal projection from A of side c
+  const cosA = Math.cos(toRad(A));
+  const sinA = Math.sin(toRad(A));
 
-  const scale = (W - 2*margin) / Math.max(b, height);
+  const Bx = Ax + c * scale * cosA;
+  const By = Ay - c * scale * sinA;
 
-  const Cscaled = Ax + b * scale;
-  const heightScaled = height * scale;
-
-  // Updated coordinates
-  const Axs = Ax;
-  const Ays = Ay;
-
-  const Cxs = Ax + b * scale;
-  const Cys = Ay;
-
-  // B is above somewhere depending on angles
-  const Bxs = Axs + ( (b*b + c*c - a*a) / (2*b) ) * scale;
-  const Bys = Ays - heightScaled;
-
-  // Draw
+  // --- DRAW TRIANGLE ---
+  ctx.lineWidth = Math.max(canvas.width * 0.006, 2);
+  ctx.strokeStyle = '#fff';
   ctx.beginPath();
-  ctx.moveTo(Axs, Ays);
-  ctx.lineTo(Cxs, Cys);
-  ctx.lineTo(Bxs, Bys);
+  ctx.moveTo(Ax, Ay);
+  ctx.lineTo(Cx, Cy);
+  ctx.lineTo(Bx, By);
   ctx.closePath();
-
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#fff";
   ctx.stroke();
 
-  ctx.fillStyle = "#fff";
-  ctx.font = `${W*0.03}px Arial`;
+  // --- LABELS ---
+  ctx.fillStyle = '#fff';
+  ctx.font = `${canvas.width * 0.03}px Arial`;
 
   // Side labels
-  ctx.fillText(`b=${b.toFixed(2)}`, (Axs + Cxs)/2 - 20, Ays + 25);
-  ctx.fillText(`a=${a.toFixed(2)}`, (Bxs + Cxs)/2 + 5, (Bys + Cys)/2);
-  ctx.fillText(`c=${c.toFixed(2)}`, (Axs + Bxs)/2 - 40, (Ays + Bys)/2);
+  ctx.fillText(`b=${b.toFixed(2)}`, (Ax + Cx) / 2 - 20, Ay + 25);
+  ctx.fillText(`a=${a.toFixed(2)}`, (Bx + Cx) / 2 + 10, (By + Cy) / 2);
+  ctx.fillText(`c=${c.toFixed(2)}`, (Ax + Bx) / 2 - 40, (Ay + By) / 2);
 
-  // Angle labels
-  ctx.fillText(`A=${A.toFixed(1)}°`, Axs - 40, Ays + 30);
-  ctx.fillText(`C=${Cang.toFixed(1)}°`, Cxs + 10, Cys + 30);
-  ctx.fillText(`B=${B.toFixed(1)}°`, Bxs - 20, Bys - 10);
+  // Angle labels (correct orientation)
+  ctx.fillText(`A=${A.toFixed(1)}°`, Ax - 40, Ay + 30);
+  ctx.fillText(`C=${Cang.toFixed(1)}°`, Cx + 10, Cy + 30);
+  ctx.fillText(`B=${B.toFixed(1)}°`, Bx - 20, By - 10);
 }
+
 
 function solve() {
   const a = parseFloat(document.getElementById('a').value);
