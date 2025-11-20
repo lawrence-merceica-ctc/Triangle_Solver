@@ -128,7 +128,10 @@ function drawTriangle(a, b, c, A, B, Cang) {
   const margin = canvas.width * 0.12;
 
   // scale based on max side – SAME as your original
-  const scale = (canvas.width - 2 * margin) / Math.max(a, b, c);
+  let  scale = (canvas.width - 2 * margin) / Math.max(a, b, c);
+
+  // Apply 10% shrink (prevents cut-off text)
+  scale *= 0.9;
 
   // --- COORDINATES ---
   // A = bottom-left
